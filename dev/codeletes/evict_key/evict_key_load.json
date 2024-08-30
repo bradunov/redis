@@ -1,0 +1,17 @@
+{
+    "codeletset_id": "evict_key_codeletset",
+    "codelet_descriptor": [
+      {
+        "codelet_name": "evict_key_codelet",
+        "hook_name": "evict_key",
+        "codelet_path": "${PWD}/evict_key_codelet.o",
+        "priority": 1, 
+        "out_io_channel": [
+          {
+            "name": "outmap",
+            "stream_id": "00112233445566778899AABBCCDDEEEE"
+          }
+        ]
+      }
+    ]
+}

@@ -42,6 +42,20 @@ struct evictionPoolEntry {
 
 static struct evictionPoolEntry *EvictionPoolLRU;
 
+
+#ifdef BUILD_JANUS
+// Hook declaration and definition.
+DECLARE_JANUS_HOOK(
+    evict_key,
+    struct janus_generic_ctx ctx,
+    ctx,
+    HOOK_PROTO(JanusEvictKeyCtx* p, int ctx_id),
+    HOOK_ASSIGN(ctx.ctx_id = ctx_id; ctx.data = (uint64_t)(void*)p; ctx.data_end = (uint64_t)(void*)(p + 1);))
+DEFINE_JANUS_HOOK(evict_key)
+#endif
+
+
+
 /* ----------------------------------------------------------------------------
  * Implementation of eviction, aging and LRU
  * --------------------------------------------------------------------------*/
@@ -688,6 +702,36 @@ int performEvictions(void) {
             postExecutionUnitOperations();
             decrRefCount(keyobj);
             keys_freed++;
+
+
+
+#ifdef BUILD_JANUS
+            // At the moment we only report to Janus string keys
+            if (keyobj->type == OBJ_STRING && (keyobj->encoding == OBJ_ENCODING_RAW || keyobj->encoding == OBJ_ENCODING_EMBSTR)) {
+                size_t memory_total;
+                size_t memory_logical;
+                size_t memory_tofree;
+                float memory_level;
+                uint64_t elap=elapsedUs(evictionTimer);
+                JanusEvictKeyCtx ctx = {0};
+                strncpy(ctx.key, keyobj->ptr, MAX_JANUS_KEY);
+                ctx.eviction_duration = elap;
+                ctx.memory_full = (getMaxmemoryState(&memory_total,&memory_logical,&memory_tofree,&memory_level) != C_OK);
+                ctx.memory_total = memory_total;
+                if (ctx.memory_full) {
+                    // Only populated if memory_full is true
+                    ctx.memory_logical = memory_logical;
+                    ctx.memory_tofree = memory_tofree;
+                } else {
+                    ctx.memory_logical = 0;
+                    ctx.memory_tofree = 0;
+                }
+                ctx.memory_level = (int)(memory_level * 10000.);
+                ctx.keys_freed = keys_freed;
+                ctx.result = isEvictionProcRunning;
+                hook_evict_key(&ctx, 0);
+            }            
+#endif
 
             if (keys_freed % 16 == 0) {
                 /* When the memory to free starts to be big enough, we may

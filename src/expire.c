@@ -107,6 +107,19 @@ typedef struct {
     int ttl_samples; /* num keys with ttl not yet expired */
 } expireScanData;
 
+
+#ifdef BUILD_JANUS
+// Hook declaration and definition.
+DECLARE_JANUS_HOOK(
+    expire,
+    struct janus_generic_ctx ctx,
+    ctx,
+    HOOK_PROTO(expireScanData* p, int ctx_id),
+    HOOK_ASSIGN(ctx.ctx_id = ctx_id; ctx.data = (uint64_t)(void*)p; ctx.data_end = (uint64_t)(void*)(p + 1);))
+DEFINE_JANUS_HOOK(expire)
+#endif
+
+
 void expireScanCallback(void *privdata, const dictEntry *const_de) {
     dictEntry *de = (dictEntry *)const_de;
     expireScanData *data = privdata;
@@ -330,6 +343,9 @@ void activeExpireCycle(int type) {
 
             while (data.sampled < num && checked_buckets < max_buckets) {
                 db->expires_cursor = kvstoreScan(db->expires, db->expires_cursor, -1, expireScanCallback, isExpiryDictValidForSamplingCb, &data);
+#ifdef BUILD_JANUS
+                hook_expire(&data, (int)(db->expires_cursor != 0));
+#endif
                 if (db->expires_cursor == 0) {
                     db_done = 1;
                     break;

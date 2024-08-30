@@ -315,6 +315,11 @@ ifeq ($(BUILD_TLS),module)
 	TLS_MODULE_CFLAGS+=-DUSE_OPENSSL=$(BUILD_MODULE) $(OPENSSL_CFLAGS) -DBUILD_TLS_MODULE=$(BUILD_MODULE)
 endif
 
+ifeq ($(BUILD_JANUS),yes)
+	FINAL_CFLAGS+= -DBUILD_JANUS=1 -I${JANUS_PATH}/out/inc -Wno-old-style-declaration -Wno-variadic-macros
+	FINAL_LIBS += -L${JANUS_PATH}/out/lib -ljanus	
+endif
+
 ifndef V
     define MAKE_INSTALL
         @printf '    %b %b\n' $(LINKCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$(1)$(ENDCOLOR) 1>&2
@@ -383,6 +388,7 @@ persist-settings: distclean
 	echo OPT=$(OPT) >> .make-settings
 	echo MALLOC=$(MALLOC) >> .make-settings
 	echo BUILD_TLS=$(BUILD_TLS) >> .make-settings
+	echo BUILD_JANUS=$(BUILD_JANUS) >> .make-settings
 	echo USE_SYSTEMD=$(USE_SYSTEMD) >> .make-settings
 	echo CFLAGS=$(CFLAGS) >> .make-settings
 	echo LDFLAGS=$(LDFLAGS) >> .make-settings

@@ -77,6 +77,18 @@ typedef struct redisObject robj;
 #include "endianconv.h"
 #include "crc64.h"
 
+
+#ifdef BUILD_JANUS
+////// JANUS CONTEXT ////////////////////////////////////////
+#include "janus.h"
+#include "janus_hook.h"
+#include "janus_defs.h"
+// Structs to be passed to Janus codelets
+#include "janus_structs.h"
+/////////////////////////////////////////////////////////////
+#endif
+
+
 struct hdr_histogram;
 
 /* helpers */

@@ -1,0 +1,17 @@
+{
+    "codeletset_id": "expire_codeletset",
+    "codelet_descriptor": [
+      {
+        "codelet_name": "expire_codelet",
+        "hook_name": "expire",
+        "codelet_path": "${PWD}/expire_codelet.o",
+        "priority": 1, 
+        "out_io_channel": [
+          {
+            "name": "outmap",
+            "stream_id": "00112233445566778899AABBCCDDEEFF"
+          }
+        ]
+      }
+    ]
+}

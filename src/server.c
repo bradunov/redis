@@ -51,6 +51,14 @@
 #include <sys/sysctl.h>
 #endif
 
+
+#ifdef BUILD_JANUS
+#include "janus.h"
+#include "janus_hook.h"
+#include "janus_defs.h"
+#endif
+
+
 #ifdef __GNUC__
 #define GNUC_VERSION_STR STRINGIFY(__GNUC__) "." STRINGIFY(__GNUC_MINOR__) "." STRINGIFY(__GNUC_PATCHLEVEL__)
 #else
@@ -6914,6 +6922,58 @@ redisTestProc *getTestProcByName(const char *name) {
 }
 #endif
 
+
+#ifdef BUILD_JANUS
+// A unique stream id that is used for the output channel. This ID is defined in the codeletset definition file
+// ("codeletset_load_request.json")
+janus_io_stream_id_t expire_data_stream_id = {
+    .id = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}};
+janus_io_stream_id_t evict_key_data_stream_id = {
+    .id = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xEE}};
+
+
+/* Copied from expire.c */
+/* And extended with an extra field */
+typedef struct {
+    redisDb *db;
+    long long now;
+    unsigned long sampled; /* num keys checked */
+    unsigned long expired; /* num keys expired */
+    long long ttl_sum; /* sum of ttl for key with ttl not yet expired */
+    int ttl_samples; /* num keys with ttl not yet expired */
+    int done; /* Was the scan done or more to be processed */
+} expireScanDataResult;
+
+
+// Handler function that is invoked every time that Janus receives one or more buffers of data from a codelet
+static void
+io_channel_print_output(janus_io_stream_id_t* stream_id, void** bufs, int num_bufs, void* ctx)
+{
+    if (stream_id && num_bufs > 0) {
+        // Check that the data corresponds to a known output channel
+        if (memcmp(&expire_data_stream_id, stream_id, sizeof(janus_io_stream_id_t)) == 0) {
+            for (int i = 0; i < num_bufs; i++) {
+                expireScanDataResult *p = (expireScanDataResult*)(bufs[i]);
+                printf("now: %lld, sampled: %ld, expired: %ld, ttl_sum: %lld, ttl_samples: %d, expired: %d\n",
+                    p->now, p->sampled, p->expired, p->ttl_sum, p->ttl_samples, p->done);
+            }
+        } else if (memcmp(&evict_key_data_stream_id, stream_id, sizeof(janus_io_stream_id_t)) == 0){
+            for (int i = 0; i < num_bufs; i++) {
+                JanusEvictKeyCtx *p = (JanusEvictKeyCtx*)(bufs[i]);
+                printf("Evict: key: %s, time: %ld, keys_freed: %d, result: %d)\n", 
+                    p->key, p->eviction_duration, p->keys_freed, p->result);
+                printf("       Memory (memory_full: %d, memory_level: %f, memory_logical: %ld, memory_tofree: %ld, memory_total: %ld)\n", 
+                    p->memory_full, (float)p->memory_level/10000., p->memory_logical, p->memory_tofree, p->memory_total);
+            }
+        } else {
+            printf("ERROR: Unkown stream_id\n");
+            return;
+        }
+    }
+}
+#endif
+
+
 int main(int argc, char **argv) {
     struct timeval tv;
     int j;
@@ -6986,6 +7046,33 @@ int main(int argc, char **argv) {
     uint8_t hashseed[16];
     getRandomBytes(hashseed,sizeof(hashseed));
     dictSetHashFunctionSeed(hashseed);
+
+
+#ifdef BUILD_JANUS
+    struct janus_config janus_config = {0};
+    janus_set_default_config_options(&janus_config);
+
+    // Enable LCM IPC interface using UNIX socket at the default socket path (the default is through C API)
+    janus_config.lcm_ipc_config.has_lcm_ipc_thread = true;
+    snprintf(
+        janus_config.lcm_ipc_config.lcm_ipc_path,
+        sizeof(janus_config.lcm_ipc_config.lcm_ipc_path) - 1,
+        "%s/%s",
+        "/tmp",
+        JANUS_DEFAULT_LCM_SOCKET);
+
+    // Initialize Janus
+    if (janus_init(&janus_config) < 0) {
+        return -1;
+    }
+
+    // Any thread that calls a hook must be registered
+    janus_register_thread();
+    // Register the callback to handle output messages from codelets
+    janus_register_io_output_cb(io_channel_print_output);
+    printf("Janus registered\n");
+#endif
+
 
     char *exec_name = strrchr(argv[0], '/');
     if (exec_name == NULL) exec_name = argv[0];
@@ -7250,6 +7337,11 @@ int main(int argc, char **argv) {
 
     aeMain(server.el);
     aeDeleteEventLoop(server.el);
+
+#ifdef BUILD_JANUS
+    janus_stop();
+#endif
+
     return 0;
 }
 
