@@ -55,14 +55,23 @@ make
 ./load.sh
 ```
 
-To test, download or build (redis-benchmark-go)[https://github.com/redis-performance/redis-benchmark-go] and run the following:
+To test, download or build [redis-benchmark-go](https://github.com/redis-performance/redis-benchmark-go) and run the following:
 ```bash
-./redis-benchmark-go -p 12000  -rueidis -r 1000000 -csc -cmd "SET __key__ __data__" -cmd-ratio 0.05 -cmd "GET __key__" -cmd-ratio 0.95
+./redis-benchmark-go -p 12000  -rueidis -r 10000000 -csc -cmd "SET __key__ __data__" -cmd-ratio 0.05 -cmd "GET __key__" -cmd-ratio 0.95
 ```
 In [redis.conf](./redis.conf) file we reduced Redis operational memory. 
 This will cause Redis to soon start printing eviction statistics. 
 
-At some point Redis will return Out-Of-Memory and will stop serving requests or trying to evict. It seems that the at that point the system has used all the memory but has no more keys to evict. It may be that the memory is used for other purposes. I don't fully understand why this is happening. But for a good benchmark we need to create a setup that will continuously add and evict keys. This is TBD. 
+Other useful commands to track keys and eviction statistics during the experiment:
+```
+watch ./redis-cli -p 12000 info memory
+watch ./redis-cli -p 12000 info keyspace
+./redis-cli -p 12000 info | grep evict
+```
+Once the memory hits the limit (100 MB), eviction will start. 
+The keyspace will reduce, first significantly, and then it will grow again. 
+The actual pattern will depend on the amount of memory allocated (in [redis.conf](./redis.conf)).
+ 
 
 
 
