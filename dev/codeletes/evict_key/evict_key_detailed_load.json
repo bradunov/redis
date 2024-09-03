@@ -1,10 +1,10 @@
 {
-    "codeletset_id": "evict_key_codeletset",
+    "codeletset_id": "evict_key_detailed_codeletset",
     "codelet_descriptor": [
       {
-        "codelet_name": "evict_key_codelet",
+        "codelet_name": "evict_key_detailed_codelet",
         "hook_name": "evict_key",
-        "codelet_path": "${PWD}/evict_key_codelet.o",
+        "codelet_path": "${PWD}/evict_key_detailed_codelet.o",
         "priority": 1, 
         "out_io_channel": [
           {

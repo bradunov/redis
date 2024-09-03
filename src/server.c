@@ -6930,6 +6930,8 @@ janus_io_stream_id_t expire_data_stream_id = {
     .id = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}};
 janus_io_stream_id_t evict_key_data_stream_id = {
     .id = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xEE}};
+janus_io_stream_id_t evict_stats_data_stream_id = {
+    .id = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xDD}};
 
 
 /* Copied from expire.c */
@@ -6964,6 +6966,12 @@ io_channel_print_output(janus_io_stream_id_t* stream_id, void** bufs, int num_bu
                     p->key, p->eviction_duration, p->keys_freed, p->result);
                 printf("       Memory (memory_full: %d, memory_level: %f, memory_logical: %ld, memory_tofree: %ld, memory_total: %ld)\n", 
                     p->memory_full, (float)p->memory_level/10000., p->memory_logical, p->memory_tofree, p->memory_total);
+            }
+        } else if (memcmp(&evict_stats_data_stream_id, stream_id, sizeof(janus_io_stream_id_t)) == 0){
+            for (int i = 0; i < num_bufs; i++) {
+                evict_stats *p = (evict_stats*)(bufs[i]);
+                printf("Evict stats (min/max): time: %ld/%ld, keys freed: %d/%d, memory level: %f/%f\n", 
+                    p->min_time_us, p->max_time_us, p->min_keys_freed, p->max_keys_freed, (float)p->min_memory_level/10000., (float)p->max_memory_level/10000.);
             }
         } else {
             printf("ERROR: Unkown stream_id\n");
